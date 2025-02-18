@@ -1,0 +1,15 @@
+services:
+  redis:
+    image: redis:latest
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:9628:6379"
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:9627:9527"
+    depends_on:
+      - redis
+    command: tail -f /unfazed_redis/README.md
+    volumes:
+      - .:/unfazed_redis
