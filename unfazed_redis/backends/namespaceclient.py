@@ -176,22 +176,27 @@ class NamespaceClient:
         return await t.cast(t.Awaitable[t.Any], self.client.hstrlen(full_key, field))
 
     async def lpush(self, key: str, *values: t.Any) -> int:
+        """Push one or more values to the head of a list"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[t.Any], self.client.lpush(full_key, *values))
 
     async def rpush(self, key: str, *values: t.Any) -> int:
+        """Push one or more values to the tail of a list"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[t.Any], self.client.rpush(full_key, *values))
 
     async def lpop(self, key: str) -> t.Any:
+        """Remove and return the first element of a list"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[t.Any], self.client.lpop(full_key))
 
     async def rpop(self, key: str) -> t.Any:
+        """Remove and return the last element of a list"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[t.Any], self.client.rpop(full_key))
 
     async def lrange(self, key: str, start: int, end: int) -> t.List[t.Any]:
+        """Get a range of elements from a list"""
         full_key = self.make_key(key)
         return await t.cast(
             t.Awaitable[t.Any], self.client.lrange(full_key, start, end)
@@ -218,15 +223,17 @@ class NamespaceClient:
         return await t.cast(t.Awaitable[t.Any], self.client.scard(full_key))
 
     async def smembers(self, key: str) -> t.Set[t.Any]:
+        """Get all members in a set"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[t.Any], self.client.smembers(full_key))
 
     async def sismember(self, key: str, member: t.Any) -> bool:
+        """Check if member exists in a set"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[t.Any], self.client.sismember(full_key, member))
 
     async def smismember(self, key: str, members: t.List[t.Any]) -> t.List[bool]:
-        """Check if multiple values are members of a set."""
+        """Check if multiple values are members of a set"""
         full_key = self.make_key(key)
         return await t.cast(
             t.Awaitable[t.Any], self.client.smismember(full_key, members)
@@ -235,7 +242,7 @@ class NamespaceClient:
     async def srandmember(
         self, key: str, number: int | None = None
     ) -> t.Union[str, t.List[str]]:
-        """Get random members from set."""
+        """Get random members from set"""
         full_key = self.make_key(key)
         return await t.cast(
             t.Awaitable[t.Any], self.client.srandmember(full_key, number)
@@ -244,19 +251,19 @@ class NamespaceClient:
     async def sscan(
         self, key: str, cursor: int = 0, match: t.Any = None, count: int | None = None
     ) -> t.Tuple[int, t.List[str]]:
-        """Incrementally iterate Set elements."""
+        """Incrementally iterate Set elements"""
         full_key = self.make_key(key)
         return await t.cast(
             t.Awaitable[t.Any], self.client.sscan(full_key, cursor, match, count)
         )
 
     async def sinter(self, *keys: str) -> t.Set[t.Any]:
-        """获取多个集合的交集"""
+        """Get the intersection of multiple sets"""
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(t.Awaitable[t.Any], self.client.sinter(full_keys))
 
     async def sinterstore(self, dest: str, keys: t.List[str], *args) -> int:
-        """Store the intersection of sets into a new set."""
+        """Store the intersection of sets into a new set"""
         full_dest = self.make_key(dest)
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(
@@ -264,12 +271,12 @@ class NamespaceClient:
         )
 
     async def sunion(self, *keys: str) -> t.Set[t.Any]:
-        """获取多个集合的并集"""
+        """Get the union of multiple sets"""
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(t.Awaitable[t.Any], self.client.sunion(full_keys))
 
     async def sunionstore(self, dest: str, keys: t.List[str], *args: t.Any) -> int:
-        """Store the union of sets into a new set."""
+        """Store the union of sets into a new set"""
         full_dest = self.make_key(dest)
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(
@@ -277,12 +284,12 @@ class NamespaceClient:
         )
 
     async def sdiff(self, *keys: str) -> t.Set[t.Any]:
-        """获取多个集合的差集"""
+        """Get the difference between multiple sets"""
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(t.Awaitable[t.Any], self.client.sdiff(full_keys))
 
     async def sdiffstore(self, dest: str, keys: t.List[str], *args: t.Any) -> int:
-        """Store the difference of sets into a new set."""
+        """Store the difference of sets into a new set"""
         full_dest = self.make_key(dest)
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(
@@ -290,7 +297,7 @@ class NamespaceClient:
         )
 
     async def smove(self, src: str, dst: str, value: t.Any) -> bool:
-        """Move member from one set to another."""
+        """Move member from one set to another"""
         full_src = self.make_key(src)
         full_dst = self.make_key(dst)
         return await t.cast(
@@ -298,21 +305,26 @@ class NamespaceClient:
         )
 
     async def zadd(self, key: str, mapping: t.Dict[t.Any, float]) -> int:
+        """Add one or more members to a sorted set"""
         full_key = self.make_key(key)
         return await self.client.zadd(full_key, mapping)
 
     async def zrem(self, key: str, *members: t.Any) -> int:
+        """Remove one or more members from a sorted set"""
         full_key = self.make_key(key)
         return await self.client.zrem(full_key, *members)
 
     async def zrange(self, key: str, start: int, stop: int, desc: bool = False) -> list:
-        """获取有序集合中指定范围的成员
+        """Get members in sorted set within a range.
 
         Args:
-            key: 键名
-            start: 起始位置
-            stop: 结束位置
-            desc: 是否按分数从高到低排序
+            key: The key name
+            start: Start position
+            stop: End position
+            desc: Whether to sort by score from high to low
+
+        Returns:
+            list: Members within the specified range
         """
         full_key = self.make_key(key)
         return await t.cast(
@@ -320,27 +332,27 @@ class NamespaceClient:
         )
 
     async def zcount(self, key: str, min_score: float, max_score: float) -> int:
-        """Count elements with scores within the given values."""
+        """Count elements with scores within the given values"""
         full_key = self.make_key(key)
         return await self.client.zcount(full_key, min_score, max_score)
 
     async def zscore(self, key: str, member) -> float:
-        """Get the score of member in sorted set."""
+        """Get the score of member in sorted set"""
         full_key = self.make_key(key)
         return await self.client.zscore(full_key, member)
 
     async def zincrby(self, key: str, amount: float, member) -> float:
-        """Increment the score of member in sorted set by amount."""
+        """Increment the score of member in sorted set by amount"""
         full_key = self.make_key(key)
         return await self.client.zincrby(full_key, amount, member)
 
     async def zrank(self, key: str, member: t.Any) -> int:
-        """Get index of member in sorted set (scores low to high)."""
+        """Get index of member in sorted set (scores low to high)"""
         full_key = self.make_key(key)
         return await self.client.zrank(full_key, member)
 
     async def zrevrank(self, key: str, member: t.Any) -> int:
-        """Get index of member in sorted set (scores high to low)."""
+        """Get index of member in sorted set (scores high to low)"""
         full_key = self.make_key(key)
         return await self.client.zrevrank(full_key, member)
 
@@ -353,7 +365,7 @@ class NamespaceClient:
         num: t.Optional[int] = None,
         withscores: bool = False,
     ) -> t.List[t.Any]:
-        """Return members with scores between min and max."""
+        """Return members with scores between min and max"""
         full_key = self.make_key(key)
         return await t.cast(
             t.Awaitable[t.Any],
@@ -371,7 +383,19 @@ class NamespaceClient:
         num: t.Optional[int] = None,
         withscores: bool = False,
     ) -> t.List[t.Any]:
-        """Return members with scores between max and min, in reverse order."""
+        """Return members with scores between max and min, in reverse order
+
+        Args:
+            key: The key name
+            max_score: Maximum score
+            min_score: Minimum score
+            start: Start offset
+            num: Number of elements to return
+            withscores: Whether to return scores with elements
+
+        Returns:
+            List of members or (member, score) tuples if withscores is True
+        """
         full_key = self.make_key(key)
         return await self.client.zrevrangebyscore(
             full_key, max_score, min_score, start, num, withscores
@@ -407,18 +431,22 @@ class NamespaceClient:
         return await self.client.zrandmember(full_key, t.cast(int, count), withscores)
 
     async def incr(self, key: str) -> int:
+        """Increment the integer value of a key by one"""
         full_key = self.make_key(key)
         return await self.client.incr(full_key)
 
     async def decr(self, key: str) -> int:
+        """Decrement the integer value of a key by one"""
         full_key = self.make_key(key)
         return await self.client.decr(full_key)
 
     async def incrby(self, key: str, amount: int) -> int:
+        """Increment the integer value of a key by the given amount"""
         full_key = self.make_key(key)
         return await self.client.incrby(full_key, amount)
 
     async def decrby(self, key: str, amount: int) -> int:
+        """Decrement the integer value of a key by the given amount"""
         full_key = self.make_key(key)
         return await self.client.decrby(full_key, amount)
 
@@ -437,18 +465,18 @@ class NamespaceClient:
         withscores: bool = False,
         score_cast_func: t.Callable = float,
     ) -> t.List[t.Any]:
-        """获取有序集合中指定范围的成员（按分数从高到低排序）
+        """Get members in sorted set within a range (scores high to low)
 
         Args:
-            key: 键名
-            start: 起始位置
-            end: 结束位置
-            withscores: 是否返回分数
-            score_cast_func: 分数转换函数
+            key: The key name
+            start: Start position
+            end: End position
+            withscores: Whether to return scores
+            score_cast_func: Score conversion function
 
         Returns:
-            如果 withscores 为 False，返回成员列表
-            如果 withscores 为 True，返回 (成员, 分数) 元组的列表
+            If withscores is False, returns list of members
+            If withscores is True, returns list of (member, score) tuples
         """
         full_key = self.make_key(key)
         return await self.client.zrevrange(
