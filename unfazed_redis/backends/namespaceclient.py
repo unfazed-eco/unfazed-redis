@@ -55,19 +55,24 @@ class NamespaceClient:
         version = self.options.version
         return default_key_func(key, prefix, version)
 
-    async def get(self, key: str) -> t.Any:
+    async def get(self, key: str) -> t.Union[bytes, memoryview, str, int, float]:
         full_key = self.make_key(key)
         return await self.client.get(full_key)
 
-    async def set(self, key: str, value: t.Any, timeout: int | None = None) -> None:
+    async def set(
+        self,
+        key: str,
+        value: t.Union[bytes, memoryview, str, int, float],
+        timeout: int | None = None,
+    ) -> None:
         full_key = self.make_key(key)
         await self.client.set(full_key, value, ex=timeout)
 
-    async def delete(self, *keys: t.Any) -> int:
+    async def delete(self, *keys: str) -> int:
         full_keys = [self.make_key(key) for key in keys]
         return await self.client.delete(*full_keys)
 
-    async def exists(self, *keys: t.Any) -> int:
+    async def exists(self, *keys: str) -> int:
         full_keys = [self.make_key(key) for key in keys]
         return await self.client.exists(*full_keys)
 
@@ -79,88 +84,85 @@ class NamespaceClient:
         full_key = self.make_key(key)
         return await self.client.ttl(full_key)
 
-    async def hdel(self, key: str, *args: t.Any) -> int:
+    async def hdel(self, key: str, *args: str) -> int:
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hdel(full_key, *args))
+        return await t.cast(t.Awaitable[int], self.client.hdel(full_key, *args))
 
     async def hexists(self, key: str, field: str) -> bool:
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hexists(full_key, field))
+        return await t.cast(t.Awaitable[bool], self.client.hexists(full_key, field))
 
-    async def hget(self, key: str, *args: t.Any) -> t.Any:
+    async def hget(self, key: str, *args: str) -> t.Optional[str]:
         full_key = self.make_key(key)
         return await self.client.hget(full_key, *args)  # type: ignore
 
-    async def hgetall(self, key: str) -> t.Dict[str, t.Any]:
+    async def hgetall(self, key: str) -> dict:
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hgetall(full_key))
+        return await t.cast(t.Awaitable[dict], self.client.hgetall(full_key))
 
     async def hincrby(self, key: str, field: str, increment: int) -> int:
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.hincrby(full_key, field, increment)
+            t.Awaitable[int], self.client.hincrby(full_key, field, increment)
         )
 
     async def hkeys(self, key: str) -> t.List[str]:
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hkeys(full_key))
+        return await t.cast(t.Awaitable[t.List[str]], self.client.hkeys(full_key))
 
     async def hlen(self, key: str) -> int:
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hlen(full_key))
+        return await t.cast(t.Awaitable[int], self.client.hlen(full_key))
 
-    async def hmget(self, key: str, *args: t.Any) -> t.List[t.Any]:
+    async def hmget(self, key: str, *args: list) -> list:
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hmget(full_key, *args))
+        return await t.cast(t.Awaitable[list], self.client.hmget(full_key, *args))
 
-    async def hmset(self, key: str, mapping: t.Dict[str, t.Any]) -> None:
-        """Set multiple hash fields to multiple values."""
+    async def hmset(self, key: str, mapping: dict) -> None:
         if mapping is None:
             raise DataError("'hmset' value cannot be None")
         if not isinstance(mapping, dict):
             raise DataError("'hmset' value must be a dict")
         if not mapping:
-            return  # 如果是空字典，直接返回
+            return
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hmset(full_key, mapping))
+        return await t.cast(t.Awaitable[None], self.client.hmset(full_key, mapping))
 
     async def hset(
         self,
         key: str,
-        field: t.Any = None,
-        value: t.Any = None,
-        mapping: t.Dict[str, t.Any] | None = None,
-        items: t.Dict[str, t.Any] | None = None,
+        field: t.Optional[str] = None,
+        value: t.Optional[str] = None,
+        mapping: t.Optional[dict] = None,
+        items: t.Optional[list] = None,
     ) -> int:
-        """Set field/value into hash, and also accept a mapping to batch set."""
-        full_key = self.make_key(key)
-        if items:
-            mapping = dict(items)
-        if field is None and not mapping:
-            raise DataError("'hset' with no key value pairs")
-        return await t.cast(
-            t.Awaitable[t.Any], self.client.hset(full_key, field, value, mapping)
-        )
-
-    async def hsetnx(self, key: str, field: t.Any, value: t.Any) -> bool:
-        """Set field/value into hash only if field does not exist."""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.hsetnx(full_key, field, value)
+            t.Awaitable[int], self.client.hset(full_key, field, value, mapping, items)
         )
 
-    async def hvals(self, key: str) -> t.List[t.Any]:
-        """Return all values in hash."""
+    async def hsetnx(self, key: str, field: str, value: str) -> bool:
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hvals(full_key))
+        return await t.cast(
+            t.Awaitable[bool], self.client.hsetnx(full_key, field, value)
+        )
+
+    async def hvals(self, key: str) -> list:
+        full_key = self.make_key(key)
+        return await t.cast(t.Awaitable[list], self.client.hvals(full_key))
 
     async def hscan(
-        self, key: str, cursor: int = 0, match: t.Any = None, count: int | None = None
+        self,
+        key: str,
+        cursor: int = 0,
+        match: t.Union[bytes, str, memoryview, None] = None,
+        count: int | None = None,
     ) -> t.Tuple[int, t.Dict]:
         """Incrementally iterate hash fields and values."""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.hscan(full_key, cursor, match, count)
+            t.Awaitable[t.Tuple[int, t.Dict]],
+            self.client.hscan(full_key, cursor, match, count),
         )
 
     async def hrandfield(
@@ -170,73 +172,86 @@ class NamespaceClient:
         full_key = self.make_key(key)
         return await self.client.hrandfield(full_key, count, withvalues)
 
-    async def hstrlen(self, key: str, field: t.Any) -> int:
+    async def hstrlen(self, key: str, field: str) -> int:
         """Return length of string value in hash."""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.hstrlen(full_key, field))
+        return await t.cast(t.Awaitable[int], self.client.hstrlen(full_key, field))
 
-    async def lpush(self, key: str, *values: t.Any) -> int:
+    async def lpush(
+        self, key: str, *values: t.Union[bytes, memoryview, str, int, float]
+    ) -> int:
         """Push one or more values to the head of a list"""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.lpush(full_key, *values))
+        return await t.cast(t.Awaitable[int], self.client.lpush(full_key, *values))
 
-    async def rpush(self, key: str, *values: t.Any) -> int:
+    async def rpush(
+        self, key: str, *values: t.Union[bytes, memoryview, str, int, float]
+    ) -> int:
         """Push one or more values to the tail of a list"""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.rpush(full_key, *values))
+        return await t.cast(t.Awaitable[int], self.client.rpush(full_key, *values))
 
-    async def lpop(self, key: str) -> t.Any:
+    async def lpop(self, key: str) -> t.Union[bytes, memoryview, str, int, float]:
         """Remove and return the first element of a list"""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.lpop(full_key))
-
-    async def rpop(self, key: str) -> t.Any:
-        """Remove and return the last element of a list"""
-        full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.rpop(full_key))
-
-    async def lrange(self, key: str, start: int, end: int) -> t.List[t.Any]:
-        """Get a range of elements from a list"""
-        full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.lrange(full_key, start, end)
+            t.Awaitable[t.Union[bytes, memoryview, str, int, float]],
+            self.client.lpop(full_key),
         )
 
-    async def sadd(self, key: str, *members: t.Any) -> int:
+    async def rpop(self, key: str) -> t.Union[bytes, memoryview, str, int, float]:
+        """Remove and return the last element of a list"""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.sadd(full_key, *members))
+        return await t.cast(
+            t.Awaitable[t.Union[bytes, memoryview, str, int, float]],
+            self.client.rpop(full_key),
+        )
 
-    async def srem(self, key: str, *members: t.Any) -> int:
+    async def lrange(self, key: str, start: int, end: int) -> list:
+        """Get a range of elements from a list"""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.srem(full_key, *members))
+        return await t.cast(t.Awaitable[list], self.client.lrange(full_key, start, end))
+
+    async def sadd(
+        self, key: str, *members: t.Union[bytes, memoryview, str, int, float]
+    ) -> int:
+        full_key = self.make_key(key)
+        return await t.cast(t.Awaitable[int], self.client.sadd(full_key, *members))
+
+    async def srem(
+        self, key: str, *members: t.Union[bytes, memoryview, str, int, float]
+    ) -> int:
+        full_key = self.make_key(key)
+        return await t.cast(t.Awaitable[int], self.client.srem(full_key, *members))
 
     async def spop(
         self, key: str, count: int | None = None
     ) -> t.Union[str, t.List[str]]:
-        """Remove and return random members from set."""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.spop(full_key, count))
+        return await t.cast(
+            t.Awaitable[t.Union[str, t.List[str]]], self.client.spop(full_key, count)
+        )
 
     async def scard(self, key: str) -> int:
         """Get the number of members in a set."""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.scard(full_key))
+        return await t.cast(t.Awaitable[int], self.client.scard(full_key))
 
     async def smembers(self, key: str) -> t.Set[t.Any]:
         """Get all members in a set"""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.smembers(full_key))
+        return await t.cast(t.Awaitable[t.Set[t.Any]], self.client.smembers(full_key))
 
-    async def sismember(self, key: str, member: t.Any) -> bool:
+    async def sismember(self, key: str, member: str) -> bool:
         """Check if member exists in a set"""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.sismember(full_key, member))
+        return await t.cast(t.Awaitable[bool], self.client.sismember(full_key, member))
 
-    async def smismember(self, key: str, members: t.List[t.Any]) -> t.List[bool]:
+    async def smismember(self, key: str, members: list) -> t.List[bool]:
         """Check if multiple values are members of a set"""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.smismember(full_key, members)
+            t.Awaitable[t.List[bool]], self.client.smismember(full_key, members)
         )
 
     async def srandmember(
@@ -245,71 +260,79 @@ class NamespaceClient:
         """Get random members from set"""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.srandmember(full_key, number)
+            t.Awaitable[t.Union[str, t.List[str]]],
+            self.client.srandmember(full_key, number),
         )
 
     async def sscan(
-        self, key: str, cursor: int = 0, match: t.Any = None, count: int | None = None
+        self,
+        key: str,
+        cursor: int = 0,
+        match: t.Union[bytes, str, memoryview, None] = None,
+        count: int | None = None,
     ) -> t.Tuple[int, t.List[str]]:
         """Incrementally iterate Set elements"""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.sscan(full_key, cursor, match, count)
+            t.Awaitable[t.Tuple[int, t.List[str]]],
+            self.client.sscan(full_key, cursor, match, count),
         )
 
     async def sinter(self, *keys: str) -> t.Set[t.Any]:
         """Get the intersection of multiple sets"""
         full_keys = [self.make_key(key) for key in keys]
-        return await t.cast(t.Awaitable[t.Any], self.client.sinter(full_keys))
+        return await t.cast(t.Awaitable[t.Set[t.Any]], self.client.sinter(full_keys))
 
     async def sinterstore(self, dest: str, keys: t.List[str], *args) -> int:
         """Store the intersection of sets into a new set"""
         full_dest = self.make_key(dest)
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(
-            t.Awaitable[t.Any], self.client.sinterstore(full_dest, full_keys, *args)
+            t.Awaitable[int], self.client.sinterstore(full_dest, full_keys, *args)
         )
 
     async def sunion(self, *keys: str) -> t.Set[t.Any]:
         """Get the union of multiple sets"""
         full_keys = [self.make_key(key) for key in keys]
-        return await t.cast(t.Awaitable[t.Any], self.client.sunion(full_keys))
+        return await t.cast(t.Awaitable[t.Set[t.Any]], self.client.sunion(full_keys))
 
-    async def sunionstore(self, dest: str, keys: t.List[str], *args: t.Any) -> int:
+    async def sunionstore(self, dest: str, keys: t.List[str], *args: list) -> int:
         """Store the union of sets into a new set"""
         full_dest = self.make_key(dest)
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(
-            t.Awaitable[t.Any], self.client.sunionstore(full_dest, full_keys, *args)
+            t.Awaitable[int], self.client.sunionstore(full_dest, full_keys, *args)
         )
 
     async def sdiff(self, *keys: str) -> t.Set[t.Any]:
         """Get the difference between multiple sets"""
         full_keys = [self.make_key(key) for key in keys]
-        return await t.cast(t.Awaitable[t.Any], self.client.sdiff(full_keys))
+        return await t.cast(t.Awaitable[t.Set[t.Any]], self.client.sdiff(full_keys))
 
-    async def sdiffstore(self, dest: str, keys: t.List[str], *args: t.Any) -> int:
+    async def sdiffstore(self, dest: str, keys: t.List[str], *args: list) -> int:
         """Store the difference of sets into a new set"""
         full_dest = self.make_key(dest)
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(
-            t.Awaitable[t.Any], self.client.sdiffstore(full_dest, full_keys, *args)
+            t.Awaitable[int], self.client.sdiffstore(full_dest, full_keys, *args)
         )
 
-    async def smove(self, src: str, dst: str, value: t.Any) -> bool:
+    async def smove(self, src: str, dst: str, value: str) -> bool:
         """Move member from one set to another"""
         full_src = self.make_key(src)
         full_dst = self.make_key(dst)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.smove(full_src, full_dst, value)
+            t.Awaitable[bool], self.client.smove(full_src, full_dst, value)
         )
 
-    async def zadd(self, key: str, mapping: t.Dict[t.Any, float]) -> int:
+    async def zadd(self, key: str, mapping: dict) -> int:
         """Add one or more members to a sorted set"""
         full_key = self.make_key(key)
         return await self.client.zadd(full_key, mapping)
 
-    async def zrem(self, key: str, *members: t.Any) -> int:
+    async def zrem(
+        self, key: str, *members: t.Union[bytes, memoryview, str, int, float]
+    ) -> int:
         """Remove one or more members from a sorted set"""
         full_key = self.make_key(key)
         return await self.client.zrem(full_key, *members)
@@ -328,33 +351,47 @@ class NamespaceClient:
         """
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.zrange(full_key, start, stop, desc=desc)
+            t.Awaitable[list],
+            self.client.zrange(full_key, start, stop, desc=desc),
         )
 
     async def zcount(self, key: str, min_score: float, max_score: float) -> int:
         """Count elements with scores within the given values"""
         full_key = self.make_key(key)
-        return await self.client.zcount(full_key, min_score, max_score)
+        return await t.cast(
+            t.Awaitable[int], self.client.zcount(full_key, min_score, max_score)
+        )
 
     async def zscore(self, key: str, member) -> float:
         """Get the score of member in sorted set"""
         full_key = self.make_key(key)
-        return await self.client.zscore(full_key, member)
+        return await t.cast(t.Awaitable[float], self.client.zscore(full_key, member))
 
     async def zincrby(self, key: str, amount: float, member) -> float:
         """Increment the score of member in sorted set by amount"""
         full_key = self.make_key(key)
-        return await self.client.zincrby(full_key, amount, member)
+        return await t.cast(
+            t.Awaitable[float], self.client.zincrby(full_key, amount, member)
+        )
 
-    async def zrank(self, key: str, member: t.Any) -> int:
+    async def zrank(
+        self, key: str, member: t.Union[bytes, memoryview, str, int, float]
+    ) -> int:
         """Get index of member in sorted set (scores low to high)"""
         full_key = self.make_key(key)
-        return await self.client.zrank(full_key, member)
+        return await t.cast(t.Awaitable[int], self.client.zrank(full_key, member))
 
-    async def zrevrank(self, key: str, member: t.Any) -> int:
+    async def zrevrank(
+        self,
+        key: str,
+        member: t.Union[bytes, memoryview, str, int, float],
+        withscore: bool = False,
+    ) -> int:
         """Get index of member in sorted set (scores high to low)"""
         full_key = self.make_key(key)
-        return await self.client.zrevrank(full_key, member)
+        return await t.cast(
+            t.Awaitable[int], self.client.zrevrank(full_key, member, withscore)
+        )
 
     async def zrangebyscore(
         self,
@@ -364,11 +401,11 @@ class NamespaceClient:
         start: t.Optional[int] = None,
         num: t.Optional[int] = None,
         withscores: bool = False,
-    ) -> t.List[t.Any]:
+    ) -> list:
         """Return members with scores between min and max"""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any],
+            t.Awaitable[list],
             self.client.zrangebyscore(
                 full_key, min_score, max_score, start, num, withscores
             ),
@@ -382,75 +419,71 @@ class NamespaceClient:
         start: t.Optional[int] = None,
         num: t.Optional[int] = None,
         withscores: bool = False,
-    ) -> t.List[t.Any]:
-        """Return members with scores between max and min, in reverse order
-
-        Args:
-            key: The key name
-            max_score: Maximum score
-            min_score: Minimum score
-            start: Start offset
-            num: Number of elements to return
-            withscores: Whether to return scores with elements
-
-        Returns:
-            List of members or (member, score) tuples if withscores is True
-        """
+    ) -> list:
+        """Return members with scores between max and min, in reverse order"""
         full_key = self.make_key(key)
-        return await self.client.zrevrangebyscore(
-            full_key, max_score, min_score, start, num, withscores
+        return await t.cast(
+            t.Awaitable[list],
+            self.client.zrevrangebyscore(
+                full_key, max_score, min_score, start, num, withscores
+            ),
         )
 
     async def zcard(self, key: str) -> int:
-        """Get the number of members in a sorted set."""
+        """Get the number of members in a sorted set"""
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[t.Any], self.client.zcard(full_key))
+        return await t.cast(t.Awaitable[int], self.client.zcard(full_key))
 
     async def zremrangebyrank(self, key: str, start: int, end: int) -> int:
-        """Remove members in sorted set with ranks between start and end."""
+        """Remove members in sorted set with ranks between start and end"""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any], self.client.zremrangebyrank(full_key, start, end)
+            t.Awaitable[int], self.client.zremrangebyrank(full_key, start, end)
         )
 
     async def zremrangebyscore(
         self, key: str, min_score: float, max_score: float
     ) -> int:
-        """Remove members in sorted set with scores between min and max."""
+        """Remove members in sorted set with scores between min and max"""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Any],
+            t.Awaitable[int],
             self.client.zremrangebyscore(full_key, min_score, max_score),
         )
 
     async def zrandmember(
         self, key: str, count: t.Optional[int] = None, withscores: bool = False
-    ) -> t.Union[str, t.List[t.Any]]:
-        """Get random members from sorted set."""
+    ) -> t.Union[str, list]:
+        """Get random members from sorted set"""
         full_key = self.make_key(key)
-        return await self.client.zrandmember(full_key, t.cast(int, count), withscores)
+        return await t.cast(
+            t.Awaitable[t.Union[str, list]],
+            self.client.zrandmember(full_key, t.cast(int, count), withscores),
+        )
 
     async def incr(self, key: str) -> int:
         """Increment the integer value of a key by one"""
         full_key = self.make_key(key)
-        return await self.client.incr(full_key)
+        return await t.cast(t.Awaitable[int], self.client.incr(full_key))
 
     async def decr(self, key: str) -> int:
         """Decrement the integer value of a key by one"""
         full_key = self.make_key(key)
-        return await self.client.decr(full_key)
+        return await t.cast(t.Awaitable[int], self.client.decr(full_key))
 
     async def incrby(self, key: str, amount: int) -> int:
         """Increment the integer value of a key by the given amount"""
         full_key = self.make_key(key)
-        return await self.client.incrby(full_key, amount)
+        return await t.cast(t.Awaitable[int], self.client.incrby(full_key, amount))
 
     async def decrby(self, key: str, amount: int) -> int:
         """Decrement the integer value of a key by the given amount"""
         full_key = self.make_key(key)
-        return await self.client.decrby(full_key, amount)
+        return await t.cast(t.Awaitable[int], self.client.decrby(full_key, amount))
 
-    async def pipeline(self, transaction: bool = False, shard_hint: t.Any = None):
+    async def pipeline(
+        self, transaction: bool = False, shard_hint: t.Optional[str] = None
+    ):
         """
         Return a new pipeline object that can queue multiple commands for
         later execution. transaction defaults to False since Codis does not support it.
@@ -464,21 +497,16 @@ class NamespaceClient:
         end: int,
         withscores: bool = False,
         score_cast_func: t.Callable = float,
-    ) -> t.List[t.Any]:
-        """Get members in sorted set within a range (scores high to low)
-
-        Args:
-            key: The key name
-            start: Start position
-            end: End position
-            withscores: Whether to return scores
-            score_cast_func: Score conversion function
-
-        Returns:
-            If withscores is False, returns list of members
-            If withscores is True, returns list of (member, score) tuples
-        """
+    ) -> list:
+        """Get members in sorted set within a range (scores high to low)"""
         full_key = self.make_key(key)
-        return await self.client.zrevrange(
-            full_key, start, end, withscores=withscores, score_cast_func=score_cast_func
+        return await t.cast(
+            t.Awaitable[list],
+            self.client.zrevrange(
+                full_key,
+                start,
+                end,
+                withscores=withscores,
+                score_cast_func=score_cast_func,
+            ),
         )
