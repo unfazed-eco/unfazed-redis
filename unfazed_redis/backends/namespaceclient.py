@@ -1,10 +1,13 @@
-from redis.asyncio import Redis
 import typing as t
-from unfazed_redis.schema.option import RedisOptions
+
+from redis.asyncio import Redis
+from redis.asyncio.client import Pipeline
 from redis.asyncio.connection import parse_url
-from redis.backoff import ConstantBackoff
 from redis.asyncio.retry import Retry
+from redis.backoff import ConstantBackoff
 from redis.exceptions import DataError
+
+from unfazed_redis.schema.option import RedisOptions
 
 
 def default_key_func(key: str, key_prefix: str | None, version: str | None) -> str:
@@ -283,7 +286,7 @@ class NamespaceClient:
         full_keys = [self.make_key(key) for key in keys]
         return await t.cast(t.Awaitable[t.Set[t.Any]], self.client.sinter(full_keys))
 
-    async def sinterstore(self, dest: str, keys: t.List[str], *args) -> int:
+    async def sinterstore(self, dest: str, keys: t.List[str], *args: list) -> int:
         """Store the intersection of sets into a new set"""
         full_dest = self.make_key(dest)
         full_keys = [self.make_key(key) for key in keys]
@@ -355,19 +358,28 @@ class NamespaceClient:
             self.client.zrange(full_key, start, stop, desc=desc),
         )
 
-    async def zcount(self, key: str, min_score: float, max_score: float) -> int:
+    async def zcount(
+        self, key: str, min_score: t.Union[float, str], max_score: t.Union[float, str]
+    ) -> int:
         """Count elements with scores within the given values"""
         full_key = self.make_key(key)
         return await t.cast(
             t.Awaitable[int], self.client.zcount(full_key, min_score, max_score)
         )
 
-    async def zscore(self, key: str, member) -> float:
+    async def zscore(
+        self, key: str, member: t.Union[bytes, memoryview, str, int, float]
+    ) -> float:
         """Get the score of member in sorted set"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[float], self.client.zscore(full_key, member))
 
-    async def zincrby(self, key: str, amount: float, member) -> float:
+    async def zincrby(
+        self,
+        key: str,
+        amount: float,
+        member: t.Union[bytes, memoryview, str, int, float],
+    ) -> float:
         """Increment the score of member in sorted set by amount"""
         full_key = self.make_key(key)
         return await t.cast(
@@ -483,12 +495,14 @@ class NamespaceClient:
 
     async def pipeline(
         self, transaction: bool = False, shard_hint: t.Optional[str] = None
-    ):
+    ) -> Pipeline:
         """
         Return a new pipeline object that can queue multiple commands for
         later execution. transaction defaults to False since Codis does not support it.
         """
-        return self.client.pipeline(transaction=transaction, shard_hint=shard_hint)
+        return await self.client.pipeline(
+            transaction=transaction, shard_hint=shard_hint
+        )
 
     async def zrevrange(
         self,

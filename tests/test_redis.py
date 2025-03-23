@@ -1,14 +1,17 @@
-import os
-import pytest
 import asyncio
-from unfazed_redis.backends.namespaceclient import NamespaceClient
+import os
+import typing as t
+
+import pytest
 from redis.exceptions import ResponseError
+
+from unfazed_redis.backends.namespaceclient import NamespaceClient
 
 HOST = os.getenv("REDIS_HOST", "redis")
 
 
 @pytest.fixture(scope="session")
-def event_loop():
+def event_loop() -> t.Generator[asyncio.AbstractEventLoop, None, None]:
     """Create a session-level event loop"""
     policy = asyncio.get_event_loop_policy()
     loop = policy.new_event_loop()
@@ -17,7 +20,9 @@ def event_loop():
 
 
 @pytest.fixture(scope="function")
-async def client(event_loop):
+async def client(
+    event_loop: asyncio.AbstractEventLoop,
+) -> t.AsyncGenerator[NamespaceClient, None]:
     """Create a test Redis client"""
     client = NamespaceClient(
         f"redis://{HOST}:6379",
@@ -34,7 +39,7 @@ async def client(event_loop):
 
 
 # First part: Basic configuration test
-async def test_client_basic_initialization(client) -> None:
+async def test_client_basic_initialization(client: NamespaceClient) -> None:
     """Test client basic initialization"""
     # Test default initialization
     client = NamespaceClient(
@@ -46,7 +51,7 @@ async def test_client_basic_initialization(client) -> None:
     assert key == f"{client.options.prefix}:{client.options.version}:test_key"
 
 
-async def test_client_custom_initialization(client) -> None:
+async def test_client_custom_initialization(client: NamespaceClient) -> None:
     """Test client custom configuration initialization"""
     custom_options = {
         "decode_responses": True,
@@ -73,7 +78,7 @@ async def test_client_custom_initialization(client) -> None:
 
 
 # Second part: Basic key value operation test
-async def test_key_basic_operations(client) -> None:
+async def test_key_basic_operations(client: NamespaceClient) -> None:
     """Test basic key value operations"""
     # Test set and get
     await client.set("basic_key", "value1")
@@ -84,7 +89,7 @@ async def test_key_basic_operations(client) -> None:
     assert await client.exists("basic_key") == 0
 
 
-async def test_key_edge_cases(client) -> None:
+async def test_key_edge_cases(client: NamespaceClient) -> None:
     """Test key value operations edge cases"""
     # Test non-existent key
     assert await client.get("nonexistent_key") is None
@@ -101,7 +106,7 @@ async def test_key_edge_cases(client) -> None:
         await client.delete(key)
 
 
-async def test_key_expiration_operations(client) -> None:
+async def test_key_expiration_operations(client: NamespaceClient) -> None:
     """Test key expiration operations"""
     # Test setting expiration time
     await client.set("expire_key", "value", timeout=1)
@@ -121,7 +126,7 @@ async def test_key_expiration_operations(client) -> None:
     assert 0 < await client.client.ttl(client.make_key("permanent_key")) <= 5
 
 
-async def test_hash_basic_operations(client) -> None:
+async def test_hash_basic_operations(client: NamespaceClient) -> None:
     """Test basic hash operations"""
     # Prepare test data
     await client.hmset("hash_key", {"field1": "value1", "field2": "value2"})
@@ -133,19 +138,23 @@ async def test_hash_basic_operations(client) -> None:
     assert set(await client.hkeys("hash_key")) == {"field1", "field2"}
     assert await client.hlen("hash_key") == 2
 
-    assert await client.client.hgetall(client.make_key("hash_key")) == {
+    assert await t.cast(
+        t.Awaitable[dict], client.client.hgetall(client.make_key("hash_key"))
+    ) == {
         "field1": "value1",
         "field2": "value2",
     }
     # Test delete operation
     await client.hdel("hash_key", "field1")
     assert not await client.hexists("hash_key", "field1")
-    assert not await client.client.hexists(client.make_key("hash_key"), "field1")
+    assert not await t.cast(
+        t.Awaitable[bool], client.client.hexists(client.make_key("hash_key"), "field1")
+    )
     # Clean up test data
     await client.delete("hash_key")
 
 
-async def test_hash_special_cases(client) -> None:
+async def test_hash_special_cases(client: NamespaceClient) -> None:
     """Test special cases for hash operations"""
     # Clean up any existing test data
     await client.delete("hash_key", "empty_hash")
@@ -154,12 +163,28 @@ async def test_hash_special_cases(client) -> None:
     # Test empty hash
     assert await client.hlen("empty_hash") == 0
     assert await client.hkeys("empty_hash") == []
-    assert await client.client.hlen(client.make_key("empty_hash")) == 0
-    assert await client.client.hkeys(client.make_key("empty_hash")) == []
+    assert (
+        await t.cast(
+            t.Awaitable[int], client.client.hlen(client.make_key("empty_hash"))
+        )
+        == 0
+    )
+    assert (
+        await t.cast(
+            t.Awaitable[list], client.client.hkeys(client.make_key("empty_hash"))
+        )
+        == []
+    )
     # Test empty field value
     await client.hset("hash_key", "empty_field", "")
     assert await client.hget("hash_key", "empty_field") == ""
-    assert await client.client.hget(client.make_key("hash_key"), "empty_field") == ""
+    assert (
+        await t.cast(
+            t.Awaitable[t.Optional[str]],
+            client.client.hget(client.make_key("hash_key"), "empty_field"),
+        )
+        == ""
+    )
 
     # 2. Special character test
     special_fields = {
@@ -194,7 +219,7 @@ async def test_hash_special_cases(client) -> None:
     await client.delete("hash_key", "empty_hash", "large_hash")
 
 
-async def test_list_basic_operations(client) -> None:
+async def test_list_basic_operations(client: NamespaceClient) -> None:
     """Test basic list operations"""
     # Clean up any existing test data
     await client.delete("list_key")
@@ -202,14 +227,18 @@ async def test_list_basic_operations(client) -> None:
     # Test adding elements from left
     await client.lpush("list_key", "item1", "item2")
     assert await client.lrange("list_key", 0, -1) == ["item2", "item1"]
-    assert await client.client.lrange(client.make_key("list_key"), 0, -1) == [
+    assert await t.cast(
+        t.Awaitable[list], client.client.lrange(client.make_key("list_key"), 0, -1)
+    ) == [
         "item2",
         "item1",
     ]
     # Test adding elements from right
     await client.rpush("list_key", "item3")
     assert await client.lrange("list_key", 0, -1) == ["item2", "item1", "item3"]
-    assert await client.client.lrange(client.make_key("list_key"), 0, -1) == [
+    assert await t.cast(
+        t.Awaitable[list], client.client.lrange(client.make_key("list_key"), 0, -1)
+    ) == [
         "item2",
         "item1",
         "item3",
@@ -217,20 +246,24 @@ async def test_list_basic_operations(client) -> None:
     # Test popping elements from left
     assert await client.lpop("list_key") == "item2"
     assert await client.lrange("list_key", 0, -1) == ["item1", "item3"]
-    assert await client.client.lrange(client.make_key("list_key"), 0, -1) == [
+    assert await t.cast(
+        t.Awaitable[list], client.client.lrange(client.make_key("list_key"), 0, -1)
+    ) == [
         "item1",
         "item3",
     ]
     # Test popping elements from right
     assert await client.rpop("list_key") == "item3"
     assert await client.lrange("list_key", 0, -1) == ["item1"]
-    assert await client.client.lrange(client.make_key("list_key"), 0, -1) == ["item1"]
+    assert await t.cast(
+        t.Awaitable[list], client.client.lrange(client.make_key("list_key"), 0, -1)
+    ) == ["item1"]
 
     # Clean up test data
     await client.delete("list_key")
 
 
-async def test_list_special_cases(client) -> None:
+async def test_list_special_cases(client: NamespaceClient) -> None:
     """Test special cases for list operations"""
     # Clean up any existing test data
     await client.delete("list_key", "empty_list")
@@ -281,7 +314,7 @@ async def test_list_special_cases(client) -> None:
     await client.delete("list_key", "empty_list", "large_list")
 
 
-async def test_set_basic_operations(client) -> None:
+async def test_set_basic_operations(client: NamespaceClient) -> None:
     """Test basic set operations"""
     # Clean up any existing test data
     await client.delete("set_key")
@@ -289,30 +322,41 @@ async def test_set_basic_operations(client) -> None:
     # Test adding members
     await client.sadd("set_key", "member1", "member2", "member3")
     assert await client.smembers("set_key") == {"member1", "member2", "member3"}
-    assert await client.client.smembers(client.make_key("set_key")) == {
+    assert await t.cast(
+        t.Awaitable[t.Set[t.Any]], client.client.smembers(client.make_key("set_key"))
+    ) == {
         "member1",
         "member2",
         "member3",
     }
     # Test checking member existence
     assert await client.sismember("set_key", "member1")
-    assert await client.client.sismember(client.make_key("set_key"), "member1")
+    assert await t.cast(
+        t.Awaitable[t.Literal[0, 1]],
+        client.client.sismember(client.make_key("set_key"), "member1"),
+    )
     assert not await client.sismember("set_key", "nonexistent")
 
     # Test getting set size
     assert await client.scard("set_key") == 3
-    assert await client.client.scard(client.make_key("set_key")) == 3
+    assert (
+        await t.cast(t.Awaitable[int], client.client.scard(client.make_key("set_key")))
+        == 3
+    )
     # Test removing member
     await client.srem("set_key", "member1")
     assert not await client.sismember("set_key", "member1")
     assert await client.scard("set_key") == 2
-    assert await client.client.scard(client.make_key("set_key")) == 2
+    assert (
+        await t.cast(t.Awaitable[int], client.client.scard(client.make_key("set_key")))
+        == 2
+    )
 
     # Clean up test data
     await client.delete("set_key")
 
 
-async def test_set_special_cases(client) -> None:
+async def test_set_special_cases(client: NamespaceClient) -> None:
     """Test special cases for set operations"""
     # Clean up any existing test data
     await client.delete("set_key", "empty_set", "set1", "set2")
@@ -370,7 +414,7 @@ async def test_set_special_cases(client) -> None:
     await client.delete("set_key", "empty_set", "large_set", "set1", "set2")
 
 
-async def test_zset_basic_operations(client) -> None:
+async def test_zset_basic_operations(client: NamespaceClient) -> None:
     """Test basic zset operations"""
     # Clean up any existing test data
     await client.delete("zset_key")
@@ -427,7 +471,7 @@ async def test_zset_basic_operations(client) -> None:
     await client.delete("zset_key")
 
 
-async def test_zset_special_cases(client) -> None:
+async def test_zset_special_cases(client: NamespaceClient) -> None:
     """Test special cases for zset operations"""
     # Clean up any existing test data
     await client.delete("zset_key", "empty_zset")
@@ -457,7 +501,7 @@ async def test_zset_special_cases(client) -> None:
 
     # 4. Range query test
     # Test open interval
-    count = await client.zcount("zset_key", "(0", "2")
+    count = await t.cast(t.Awaitable[int], client.zcount("zset_key", "(0", "2"))
     members = await client.zrangebyscore("zset_key", "(0", "2")
     assert len(members) == count
 
@@ -482,7 +526,7 @@ async def test_zset_special_cases(client) -> None:
     await client.delete("zset_key", "empty_zset")
 
 
-async def test_zset_range_operations(client) -> None:
+async def test_zset_range_operations(client: NamespaceClient) -> None:
     """Test range operations for zset"""
     # Clean up any existing test data
     await client.delete("zset_key")
@@ -505,7 +549,9 @@ async def test_zset_range_operations(client) -> None:
         "member4",
         "member5",
     ]
-    assert await client.client.zrange(client.make_key("zset_key"), 0, -1) == [
+    assert await t.cast(
+        t.Awaitable[list], client.client.zrange(client.make_key("zset_key"), 0, -1)
+    ) == [
         "member1",
         "member2",
         "member3",
@@ -521,7 +567,9 @@ async def test_zset_range_operations(client) -> None:
         "member2",
         "member1",
     ]
-    assert await client.client.zrevrange(client.make_key("zset_key"), 0, -1) == [
+    assert await t.cast(
+        t.Awaitable[list], client.client.zrevrange(client.make_key("zset_key"), 0, -1)
+    ) == [
         "member5",
         "member4",
         "member3",
@@ -531,14 +579,18 @@ async def test_zset_range_operations(client) -> None:
 
     # Test partial range
     assert await client.zrange("zset_key", 1, 3) == ["member2", "member3", "member4"]
-    assert await client.client.zrange(client.make_key("zset_key"), 1, 3) == [
+    assert await t.cast(
+        t.Awaitable[list], client.client.zrange(client.make_key("zset_key"), 1, 3)
+    ) == [
         "member2",
         "member3",
         "member4",
     ]
     # Test partial range (backward)
     assert await client.zrevrange("zset_key", 1, 3) == ["member4", "member3", "member2"]
-    assert await client.client.zrevrange(client.make_key("zset_key"), 1, 3) == [
+    assert await t.cast(
+        t.Awaitable[list], client.client.zrevrange(client.make_key("zset_key"), 1, 3)
+    ) == [
         "member4",
         "member3",
         "member2",
@@ -559,7 +611,7 @@ async def test_zset_range_operations(client) -> None:
 
 
 # Add counter operation specific test cases
-async def test_counter_basic_operations(client) -> None:
+async def test_counter_basic_operations(client: NamespaceClient) -> None:
     """Test basic counter operations"""
     # Clean up any existing test data
     await client.delete("counter")
@@ -577,7 +629,7 @@ async def test_counter_basic_operations(client) -> None:
     await client.delete("counter")
 
 
-async def test_counter_special_cases(client) -> None:
+async def test_counter_special_cases(client: NamespaceClient) -> None:
     """Test special cases for counter operations"""
     # Clean up any existing test data
     await client.delete("counter")
@@ -606,7 +658,7 @@ async def test_counter_special_cases(client) -> None:
 
 
 # Add pipeline operation test cases
-async def test_pipeline_operations(client) -> None:
+async def test_pipeline_operations(client: NamespaceClient) -> None:
     """Test pipeline operations"""
     # Clean up any existing test data
     await client.delete("key1", "key2", "key3")

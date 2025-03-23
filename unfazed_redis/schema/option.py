@@ -1,6 +1,7 @@
+import typing as t
+
 from pydantic import BaseModel, Field
 from pydantic.fields import FieldInfo
-import typing as t
 
 
 class Doc(FieldInfo):
