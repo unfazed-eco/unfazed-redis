@@ -117,13 +117,14 @@ class NamespaceClient:
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[int], self.client.hlen(full_key))
 
-    async def hmget(self, key: str, *args: list) -> list:
+    async def hmget(self, key: str, fields: t.List[str]) -> list:
+        """Get the values of all the given hash fields"""
+        if not fields:  # 如果字段列表为空，直接返回空列表
+            return []
         full_key = self.make_key(key)
-        return await t.cast(t.Awaitable[list], self.client.hmget(full_key, *args))
+        return await t.cast(t.Awaitable[list], self.client.hmget(full_key, fields))
 
     async def hmset(self, key: str, mapping: dict) -> None:
-        if mapping is None:
-            raise DataError("'hmset' value cannot be None")
         if not isinstance(mapping, dict):
             raise DataError("'hmset' value must be a dict")
         if not mapping:
@@ -410,8 +411,8 @@ class NamespaceClient:
         key: str,
         min_score: t.Union[float, str],
         max_score: t.Union[float, str],
-        start: t.Optional[int] = None,
-        num: t.Optional[int] = None,
+        offset: t.Optional[int] = None,
+        count: t.Optional[int] = None,
         withscores: bool = False,
     ) -> list:
         """Return members with scores between min and max"""
@@ -419,7 +420,7 @@ class NamespaceClient:
         return await t.cast(
             t.Awaitable[list],
             self.client.zrangebyscore(
-                full_key, min_score, max_score, start, num, withscores
+                full_key, min_score, max_score, offset, count, withscores
             ),
         )
 
@@ -428,8 +429,8 @@ class NamespaceClient:
         key: str,
         max_score: t.Union[float, str],
         min_score: t.Union[float, str],
-        start: t.Optional[int] = None,
-        num: t.Optional[int] = None,
+        offset: t.Optional[int] = None,
+        count: t.Optional[int] = None,
         withscores: bool = False,
     ) -> list:
         """Return members with scores between max and min, in reverse order"""
@@ -437,7 +438,7 @@ class NamespaceClient:
         return await t.cast(
             t.Awaitable[list],
             self.client.zrevrangebyscore(
-                full_key, max_score, min_score, start, num, withscores
+                full_key, max_score, min_score, offset, count, withscores
             ),
         )
 
