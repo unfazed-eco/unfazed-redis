@@ -99,7 +99,9 @@ class NamespaceClient:
 
     async def hget(self, key: str, *args: str) -> t.Optional[str]:
         full_key = self.make_key(key)
-        return await self.client.hget(full_key, *args)  # type: ignore
+        return await t.cast(
+            t.Awaitable[t.Optional[str]], self.client.hget(full_key, *args)
+        )
 
     async def hgetall(self, key: str) -> dict:
         full_key = self.make_key(key)

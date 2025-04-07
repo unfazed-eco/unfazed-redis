@@ -50,6 +50,13 @@ async def test_client_basic_initialization(client: NamespaceClient) -> None:
     key = client.make_key("test_key")
     assert key == f"{client.options.prefix}:{client.options.version}:test_key"
 
+    # Test retry is None
+    client2 = NamespaceClient(
+        location=f"redis://{HOST}:6379",
+        options={"PREFIX": "test", "VERSION": "11", "retry": False},
+    )
+    assert client2.options.retry is False
+
 
 async def test_client_custom_initialization(client: NamespaceClient) -> None:
     """Test client custom configuration initialization"""
