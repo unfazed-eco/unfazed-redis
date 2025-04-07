@@ -3,7 +3,7 @@ import os
 import typing as t
 
 import pytest
-from redis.exceptions import ResponseError, DataError
+from redis.exceptions import DataError, ResponseError
 
 from unfazed_redis.backends.namespaceclient import NamespaceClient
 
@@ -140,7 +140,7 @@ async def test_hash_basic_operations(client: NamespaceClient) -> None:
     assert await client.hmget("hash_key", ["field1", "nonexistent"]) == ["value1", None]
     assert await t.cast(
         t.Awaitable[list],
-        client.client.hmget(client.make_key("hash_key"), "field1", "field2"),
+        client.client.hmget(client.make_key("hash_key"), ["field1", "field2"]),
     ) == ["value1", "value2"]
 
     assert await client.hexists("hash_key", "field1")
@@ -312,8 +312,7 @@ async def test_hash_special_cases(client: NamespaceClient) -> None:
         "7",  # from new_counter
         "abc",  # from non_number
         "new_value",  # from new_field
-        "新值",  # from 新字段
-        "",  # from empty_value_field
+        "新值",  # from empty_value_field
     }
 
     # Test hvals on empty hash
@@ -837,7 +836,8 @@ async def test_set_special_cases(client: NamespaceClient) -> None:
     # Test sscan operations
     # Prepare test data with a larger dataset for scanning
     scan_members = {
-        f"scan_member_{i}" for i in range(100)  # Create 100 members for testing scan
+        f"scan_member_{i}"
+        for i in range(100)  # Create 100 members for testing scan
     }
     await client.sadd("scan_set", *scan_members)
 

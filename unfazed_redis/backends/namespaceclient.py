@@ -9,6 +9,8 @@ from redis.exceptions import DataError
 
 from unfazed_redis.schema.option import RedisOptions
 
+ValueT = t.Union[bytes, memoryview, str, int, float]
+
 
 def default_key_func(key: str, key_prefix: str | None, version: str | None) -> str:
     return "%s:%s:%s" % (key_prefix or "default", version or "1", key)
@@ -58,14 +60,14 @@ class NamespaceClient:
         version = self.options.version
         return default_key_func(key, prefix, version)
 
-    async def get(self, key: str) -> t.Union[bytes, memoryview, str, int, float]:
+    async def get(self, key: str) -> ValueT:
         full_key = self.make_key(key)
         return await self.client.get(full_key)
 
     async def set(
         self,
         key: str,
-        value: t.Union[bytes, memoryview, str, int, float],
+        value: ValueT,
         timeout: int | None = None,
     ) -> None:
         full_key = self.make_key(key)
@@ -181,33 +183,29 @@ class NamespaceClient:
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[int], self.client.hstrlen(full_key, field))
 
-    async def lpush(
-        self, key: str, *values: t.Union[bytes, memoryview, str, int, float]
-    ) -> int:
+    async def lpush(self, key: str, *values: ValueT) -> int:
         """Push one or more values to the head of a list"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[int], self.client.lpush(full_key, *values))
 
-    async def rpush(
-        self, key: str, *values: t.Union[bytes, memoryview, str, int, float]
-    ) -> int:
+    async def rpush(self, key: str, *values: ValueT) -> int:
         """Push one or more values to the tail of a list"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[int], self.client.rpush(full_key, *values))
 
-    async def lpop(self, key: str) -> t.Union[bytes, memoryview, str, int, float]:
+    async def lpop(self, key: str) -> ValueT:
         """Remove and return the first element of a list"""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Union[bytes, memoryview, str, int, float]],
+            t.Awaitable[ValueT],
             self.client.lpop(full_key),
         )
 
-    async def rpop(self, key: str) -> t.Union[bytes, memoryview, str, int, float]:
+    async def rpop(self, key: str) -> ValueT:
         """Remove and return the last element of a list"""
         full_key = self.make_key(key)
         return await t.cast(
-            t.Awaitable[t.Union[bytes, memoryview, str, int, float]],
+            t.Awaitable[ValueT],
             self.client.rpop(full_key),
         )
 
@@ -216,15 +214,11 @@ class NamespaceClient:
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[list], self.client.lrange(full_key, start, end))
 
-    async def sadd(
-        self, key: str, *members: t.Union[bytes, memoryview, str, int, float]
-    ) -> int:
+    async def sadd(self, key: str, *members: ValueT) -> int:
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[int], self.client.sadd(full_key, *members))
 
-    async def srem(
-        self, key: str, *members: t.Union[bytes, memoryview, str, int, float]
-    ) -> int:
+    async def srem(self, key: str, *members: ValueT) -> int:
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[int], self.client.srem(full_key, *members))
 
@@ -334,9 +328,7 @@ class NamespaceClient:
         full_key = self.make_key(key)
         return await self.client.zadd(full_key, mapping)
 
-    async def zrem(
-        self, key: str, *members: t.Union[bytes, memoryview, str, int, float]
-    ) -> int:
+    async def zrem(self, key: str, *members: ValueT) -> int:
         """Remove one or more members from a sorted set"""
         full_key = self.make_key(key)
         return await self.client.zrem(full_key, *members)
@@ -368,9 +360,7 @@ class NamespaceClient:
             t.Awaitable[int], self.client.zcount(full_key, min_score, max_score)
         )
 
-    async def zscore(
-        self, key: str, member: t.Union[bytes, memoryview, str, int, float]
-    ) -> float:
+    async def zscore(self, key: str, member: ValueT) -> float:
         """Get the score of member in sorted set"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[float], self.client.zscore(full_key, member))
@@ -379,7 +369,7 @@ class NamespaceClient:
         self,
         key: str,
         amount: float,
-        member: t.Union[bytes, memoryview, str, int, float],
+        member: ValueT,
     ) -> float:
         """Increment the score of member in sorted set by amount"""
         full_key = self.make_key(key)
@@ -387,9 +377,7 @@ class NamespaceClient:
             t.Awaitable[float], self.client.zincrby(full_key, amount, member)
         )
 
-    async def zrank(
-        self, key: str, member: t.Union[bytes, memoryview, str, int, float]
-    ) -> int:
+    async def zrank(self, key: str, member: ValueT) -> int:
         """Get index of member in sorted set (scores low to high)"""
         full_key = self.make_key(key)
         return await t.cast(t.Awaitable[int], self.client.zrank(full_key, member))
@@ -397,7 +385,7 @@ class NamespaceClient:
     async def zrevrank(
         self,
         key: str,
-        member: t.Union[bytes, memoryview, str, int, float],
+        member: ValueT,
         withscore: bool = False,
     ) -> int:
         """Get index of member in sorted set (scores high to low)"""
@@ -455,7 +443,7 @@ class NamespaceClient:
         )
 
     async def zremrangebyscore(
-        self, key: str, min_score: float, max_score: float
+        self, key: str, min_score: t.Union[float, str], max_score: t.Union[float, str]
     ) -> int:
         """Remove members in sorted set with scores between min and max"""
         full_key = self.make_key(key)
