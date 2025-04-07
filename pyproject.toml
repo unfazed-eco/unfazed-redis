@@ -5,7 +5,7 @@ description = "Redis client for Unfazed"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "pydantic>=2.11.2",
+    "pydantic>=2.10.6",
     "redis (>=5.2.1,<6.0.0)",
 ]
 
