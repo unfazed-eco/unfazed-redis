@@ -3,6 +3,8 @@ import os
 import typing as t
 
 import pytest
+from redis.asyncio.retry import Retry
+from redis.backoff import ExponentialBackoff
 from redis.exceptions import DataError, ResponseError
 
 from unfazed_redis.backends.namespaceclient import NamespaceClient
@@ -53,9 +55,9 @@ async def test_client_basic_initialization(client: NamespaceClient) -> None:
     # Test retry is None
     client2 = NamespaceClient(
         location=f"redis://{HOST}:6379",
-        options={"PREFIX": "test", "VERSION": "11", "retry": False},
+        options={"PREFIX": "test", "VERSION": "11", "retry": None},
     )
-    assert client2.options.retry is False
+    assert client2.options.retry is None
 
 
 async def test_client_custom_initialization(client: NamespaceClient) -> None:
@@ -64,7 +66,7 @@ async def test_client_custom_initialization(client: NamespaceClient) -> None:
         "decode_responses": True,
         "PREFIX": "custom",
         "VERSION": "2",
-        "retry": True,
+        "retry": Retry(ExponentialBackoff(), 3),
         "socket_timeout": 5.0,
         "socket_connect_timeout": 1.0,
         "socket_keepalive": True,

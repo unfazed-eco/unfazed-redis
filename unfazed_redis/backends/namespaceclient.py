@@ -3,8 +3,6 @@ import typing as t
 from redis.asyncio import Redis
 from redis.asyncio.client import Pipeline
 from redis.asyncio.connection import parse_url
-from redis.asyncio.retry import Retry
-from redis.backoff import ConstantBackoff
 from redis.exceptions import DataError
 
 from unfazed_redis.schema.option import RedisOptions
@@ -23,10 +21,7 @@ class NamespaceClient:
         self.options = RedisOptions(**options)
         kw = parse_url(location)
 
-        if self.options.retry:
-            retry_cls = Retry(ConstantBackoff(0.5), 1)
-        else:
-            retry_cls = None
+        retry_cls = self.options.retry or None
         self.client = Redis(
             host=kw.get("host", "localhost"),
             port=kw.get("port", 6379),

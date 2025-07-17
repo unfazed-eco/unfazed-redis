@@ -1,7 +1,8 @@
 import typing as t
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.fields import FieldInfo
+from redis.asyncio.retry import Retry
 
 
 class Doc(FieldInfo):
@@ -24,7 +25,7 @@ class RedisOptions(BaseModel):
         description="its strongly recommended to set prefix",
     )
     version: str | None = Field(None, alias="VERSION", description="version of cache")
-    retry: bool = True
+    retry: t.Optional[Retry] = None
 
     socket_timeout: int | None = None
     socket_connect_timeout: int | None = None
@@ -60,3 +61,5 @@ class RedisOptions(BaseModel):
         alias="COMPRESSOR",
         description="compress data before save",
     )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
